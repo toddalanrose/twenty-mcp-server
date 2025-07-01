@@ -15,7 +15,17 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "type-check": "tsc --noEmit -p tsconfig.build.json",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "discover": "tsx scripts/run-api-discovery.ts",
+    "discover:help": "echo 'Run API discovery: npm run discover (requires Twenty: npm run twenty:quick)'",
+    "twenty:quick": "bash scripts/twenty-quick-start.sh",
+    "twenty:start": "bash scripts/start-twenty.sh",
+    "twenty:stop": "bash scripts/stop-twenty.sh",
+    "twenty:status": "bash scripts/twenty-status.sh",
+    "twenty:logs": "bash scripts/twenty-logs.sh",
+    "twenty:dev": "bash scripts/twenty-startup-dev.sh",
+    "twenty:setup": "bash scripts/setup-mcp-testing.sh",
+    "twenty:help": "echo 'Twenty CRM commands: twenty:quick (smart start) | twenty:start (force restart) | twenty:stop | twenty:status | twenty:logs | twenty:setup'"
   },
   "keywords": [
     "mcp",
