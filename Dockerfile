@@ -4,15 +4,14 @@ FROM node:18-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and source code first
 COPY package*.json ./
 COPY tsconfig*.json ./
-
-# Install dependencies
-RUN npm ci --only=production --silent
-
-# Copy source code
 COPY src/ ./src/
+
+# Install ALL dependencies (including devDependencies needed for build)
+# Use --ignore-scripts to prevent prepare script from running during install
+RUN npm ci --ignore-scripts --silent
 
 # Build the application
 RUN npm run build
@@ -27,10 +26,14 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
+# Copy package files first
+COPY package*.json ./
+
+# Install only production dependencies, skip scripts to avoid prepare hook
+RUN npm ci --only=production --ignore-scripts --silent && npm cache clean --force
+
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
 # Switch to non-root user
 USER nodejs
