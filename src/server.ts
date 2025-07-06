@@ -90,6 +90,7 @@ class TwentyMCPServer {
     
     this.httpTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
+      enableJsonResponse: true, // Enable JSON responses for easier testing and non-SSE clients
       onsessioninitialized: (sessionId) => {
         logger.info(`New MCP session initialized: ${sessionId}`);
       },
@@ -118,13 +119,45 @@ class TwentyMCPServer {
           res.end(JSON.stringify({ 
             status: 'healthy', 
             service: 'twenty-mcp-server',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            transport: 'http',
+            endpoints: {
+              health: '/health',
+              mcp: '/mcp',
+              info: '/info'
+            }
+          }));
+          return;
+        }
+
+        // Info endpoint for debugging
+        if (req.url === '/info' && req.method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            service: 'twenty-mcp-server',
+            version: '1.0.0',
+            transport: 'http',
+            capabilities: ['tools', 'resources', 'prompts'],
+            endpoints: {
+              health: 'GET /health - Health check',
+              mcp: 'POST /mcp - MCP JSON-RPC endpoint',
+              info: 'GET /info - This endpoint'
+            },
+            usage: {
+              initialization: 'POST /mcp with {"jsonrpc": "2.0", "method": "initialize", "params": {}, "id": 1}',
+              example: 'curl -X POST http://localhost:3001/mcp -H "Content-Type: application/json" -d \'{"jsonrpc": "2.0", "method": "initialize", "params": {}, "id": 1}\''
+            }
           }));
           return;
         }
 
         // Handle MCP requests
         if (req.url === '/mcp' || req.url === '/') {
+          // Automatically add required Accept header if missing
+          if (!req.headers.accept || !req.headers.accept.includes('text/event-stream')) {
+            req.headers.accept = 'application/json, text/event-stream';
+          }
+
           let body = '';
           if (req.method === 'POST') {
             req.on('data', chunk => body += chunk);
