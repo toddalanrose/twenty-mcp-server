@@ -7,6 +7,9 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { randomUUID } from 'crypto';
+import http from 'http';
 import { config } from './utils/config.js';
 import { logger } from './utils/logger.js';
 import { TwentyClient } from './twenty-client/index.js';
@@ -14,6 +17,9 @@ import { TwentyClient } from './twenty-client/index.js';
 class TwentyMCPServer {
   private server: Server;
   private twentyClient: TwentyClient;
+  private httpServer?: http.Server;
+  private transport?: StdioServerTransport | StreamableHTTPServerTransport;
+  private httpTransport?: StreamableHTTPServerTransport;
 
   constructor() {
     this.server = new Server(
@@ -41,7 +47,9 @@ class TwentyMCPServer {
     
     try {
       // Validate Twenty connection
+      logger.info('Validating connection to Twenty CRM...');
       await this.twentyClient.validateConnection();
+      logger.info('Twenty CRM connection validated successfully');
       
       // Register MCP tools, resources, and prompts
       this.registerTools();
@@ -70,20 +78,140 @@ class TwentyMCPServer {
     logger.debug('Registering MCP prompts...');
   }
 
-  async run(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    logger.info('Twenty MCP Server is running');
+  async runStdio(): Promise<void> {
+    logger.info('Starting MCP server with STDIO transport');
+    this.transport = new StdioServerTransport();
+    await this.server.connect(this.transport);
+    logger.info('Twenty MCP Server is running with STDIO transport');
+  }
+
+  async runHttp(port: number = 3001): Promise<void> {
+    logger.info(`Starting MCP server with HTTP transport on port ${port}`);
+    
+    this.httpTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (sessionId) => {
+        logger.info(`New MCP session initialized: ${sessionId}`);
+      },
+    });
+
+    this.transport = this.httpTransport;
+    await this.server.connect(this.transport);
+
+    // Create HTTP server
+    this.httpServer = http.createServer(async (req, res) => {
+      try {
+        // Handle CORS for browser clients
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-ID, X-Last-Event-ID');
+        
+        if (req.method === 'OPTIONS') {
+          res.writeHead(200);
+          res.end();
+          return;
+        }
+
+        // Health check endpoint
+        if (req.url === '/health' && req.method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            status: 'healthy', 
+            service: 'twenty-mcp-server',
+            timestamp: new Date().toISOString()
+          }));
+          return;
+        }
+
+        // Handle MCP requests
+        if (req.url === '/mcp' || req.url === '/') {
+          let body = '';
+          if (req.method === 'POST') {
+            req.on('data', chunk => body += chunk);
+            req.on('end', async () => {
+              try {
+                const parsedBody = body ? JSON.parse(body) : undefined;
+                await this.httpTransport!.handleRequest(req, res, parsedBody);
+              } catch (error) {
+                logger.error('Error parsing request body:', error);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+              }
+            });
+          } else {
+            await this.httpTransport!.handleRequest(req, res);
+          }
+          return;
+        }
+
+        // 404 for unknown endpoints
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+      } catch (error) {
+        logger.error('HTTP request error:', error);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+      }
+    });
+
+    // Start HTTP server
+    await new Promise<void>((resolve, reject) => {
+      this.httpServer!.listen(port, (error?: Error) => {
+        if (error) {
+          reject(error);
+        } else {
+          logger.info(`Twenty MCP Server is running on HTTP port ${port}`);
+          logger.info(`Health check available at: http://localhost:${port}/health`);
+          logger.info(`MCP endpoint available at: http://localhost:${port}/mcp`);
+          resolve();
+        }
+      });
+    });
+
+    // Handle graceful shutdown
+    process.on('SIGTERM', () => this.shutdown());
+    process.on('SIGINT', () => this.shutdown());
+  }
+
+  private async shutdown(): Promise<void> {
+    logger.info('Shutting down Twenty MCP Server...');
+    
+    if (this.httpServer) {
+      await new Promise<void>((resolve) => {
+        this.httpServer!.close(() => {
+          logger.info('HTTP server closed');
+          resolve();
+        });
+      });
+    }
+
+    if (this.transport) {
+      await this.transport.close();
+      logger.info('Transport closed');
+    }
+
+    logger.info('Twenty MCP Server shutdown complete');
+    process.exit(0);
   }
 }
 
 // Main execution
 if (import.meta.url === `file://${process.argv[1]}`) {
   const server = new TwentyMCPServer();
+  const transport = process.env.MCP_TRANSPORT || 'stdio';
+  const port = parseInt(process.env.MCP_PORT || '3001', 10);
   
   server
     .initialize()
-    .then(() => server.run())
+    .then(() => {
+      if (transport === 'http') {
+        return server.runHttp(port);
+      } else {
+        return server.runStdio();
+      }
+    })
     .catch((error) => {
       logger.error('Server startup failed:', error);
       process.exit(1);
