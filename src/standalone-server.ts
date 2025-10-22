@@ -11,7 +11,7 @@ async function main() {
     await server.initialize();
     
     // Create HTTP server for health checks and info
-    const port = process.env.PORT || 3001;
+    const port = config.MCP_SERVER_PORT || 3001;
     const httpServer = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ 
