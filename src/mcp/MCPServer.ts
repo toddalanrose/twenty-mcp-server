@@ -1,5 +1,5 @@
-import { logger } from '../utils/logger.js';
-import { config } from '../utils/config.js';
+import { logger } from '../utils/logger.js';  // Add .js
+import { config } from '../utils/config.js';  // Add .js
 import axios from 'axios';
 
 export class MCPServer {
