@@ -1,0 +1,16 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+export const config = {
+  twentyApiUrl: process.env.TWENTY_API_URL || 'https://crm.alphasync.ai',
+  twentyApiKey: process.env.TWENTY_API_KEY || '',
+  port: parseInt(process.env.PORT || '3001', 10),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isProduction: process.env.NODE_ENV === 'production'
+};
+
+// Validate required configuration
+if (!config.twentyApiKey && config.isProduction) {
+  console.warn('Warning: TWENTY_API_KEY is not set');
+}
