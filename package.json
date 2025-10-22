@@ -66,3 +66,11 @@
     "node": ">=18.0.0"
   }
 }
+{
+  "scripts": {
+    "start": "node dist/standalone-server.js",
+    "start:mcp": "node dist/server.js",
+    "build": "tsc",
+    "dev": "tsx src/server.ts"
+  }
+}
