@@ -4,7 +4,7 @@ import { logger } from './utils/logger.js';
 import express from 'express';
 import axios from 'axios';
 
-async function main() {
+async function main(): Promise<void> {
   try {
     logger.info('Initializing Twenty MCP Server (Standalone Mode)...');
     
@@ -16,12 +16,13 @@ async function main() {
     app.use(express.json());
     
     // CORS middleware for browser access
-    app.use((req, res, next) => {
+    app.use((req, res, next): void => {
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
+        res.sendStatus(200);
+        return;
       }
       next();
     });
