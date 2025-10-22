@@ -1,6 +1,6 @@
-import { MCPServer } from './mcp/MCPServer';
-import { config } from './utils/config';
-import { logger } from './utils/logger';
+import { MCPServer } from './mcp/MCPServer.js';
+import { config } from './utils/config.js';
+import { logger } from './utils/logger.js';
 import http from 'http';
 
 async function main() {
