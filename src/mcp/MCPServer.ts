@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger';
-import { config } from '../config';
+import { config } from '../utils/config';
 import axios from 'axios';
 
 export class MCPServer {
@@ -14,9 +14,9 @@ export class MCPServer {
     
     // Test the Twenty API connection
     try {
-      const response = await axios.get(`${this.config.twentyApiUrl}/rest/metadata/objects`, {
+      const response = await axios.get(`${this.config.TWENTY_API_URL}/rest/metadata/objects`, {
         headers: {
-          'Authorization': `Bearer ${this.config.twentyApiKey}`,
+          'Authorization': `Bearer ${this.config.TWENTY_API_KEY}`,
           'Content-Type': 'application/json'
         }
       });
