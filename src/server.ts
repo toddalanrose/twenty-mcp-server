@@ -1,5 +1,5 @@
 import { MCPServer } from './mcp/MCPServer';
-import { config } from './config';
+import { config } from './utils/config';
 import { logger } from './utils/logger';
 import http from 'http';
 
