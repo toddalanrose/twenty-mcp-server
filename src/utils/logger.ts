@@ -1,16 +1,9 @@
-/**
- * Logging Utility
- * Centralized logging for the Twenty MCP Server
- */
-
 import winston from 'winston';
-import { config } from './config.js';
 
 export const logger = winston.createLogger({
-  level: config.LOG_LEVEL,
+  level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
     winston.format.json()
   ),
   defaultMeta: { service: 'twenty-mcp-server' },
@@ -19,7 +12,7 @@ export const logger = winston.createLogger({
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.simple()
-      ),
-    }),
-  ],
+      )
+    })
+  ]
 });
